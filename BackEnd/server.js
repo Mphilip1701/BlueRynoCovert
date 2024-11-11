@@ -32,7 +32,7 @@ const port = 3001;  // Define the port
 
 // Middleware setup
 app.use(cors({
-  origin: 'http://localhost:3001',
+  origin: 'http://3.135.251.94:3001',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -183,5 +183,5 @@ app.use((err, req, res, next) => {
 //  console.log(`Server is running on http://54.225.115.8:${port}`);
 //});
  app.listen(port, () => {
-   console.log(`Server is running on http://localhost:${port}`);
+   console.log(`Server is running on http://3.135.251.94:${port}`);
  });
