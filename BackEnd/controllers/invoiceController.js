@@ -20,19 +20,21 @@ async function createStripeCheckoutSession(invoice, customer) {
                   currency: 'usd',
                   product_data: {
                       name: `Blue Rhyno Fencing Invoice #${invoice.InvoiceID}`,
-                      description: 'Fencing Services',
+                      description: `${invoice.MaterialType} Fence - ${invoice.FenceLength} meters - Quote #${invoice.ReferenceNumber}`,
                       metadata: {
                           invoice_id: invoice.InvoiceID,
-                          quote_id: invoice.QuoteID
+                          quote_id: invoice.QuoteID,
+                          reference_number: invoice.ReferenceNumber
                       }
                   },
-                  unit_amount: Math.round(invoice.TotalAmount * 100), // Convert to cents
+                  unit_amount: Math.round(invoice.TotalAmount * 100),
               },
               quantity: 1
           }],
           metadata: {
               invoice_id: invoice.InvoiceID,
-              quote_id: invoice.QuoteID
+              quote_id: invoice.QuoteID,
+              reference_number: invoice.ReferenceNumber
           },
           success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: `${process.env.FRONTEND_URL}/payment-cancel`,
@@ -74,8 +76,8 @@ exports.getAllOldInvoices = (req, res) => {
       i.PaymentMethod
   FROM Invoice i
   JOIN Quotes q ON i.QuoteID = q.QuoteID
-  JOIN Customer c ON q.CustomerID = c.CustomerID 
-  WHERE q.Status IN ("Completed");
+  JOIN Customers c ON q.CustomerID = c.CustomerID 
+  WHERE q.Status ${status === 'new' ? 'NOT IN' : 'IN'} ("Completed");
 `;
   
   db.query(sql, (err, results) => {
@@ -109,8 +111,8 @@ exports.getAllNewInvoices = (req, res) => {
       i.PaymentMethod
   FROM Invoice i
   JOIN Quotes q ON i.QuoteID = q.QuoteID
-  JOIN Customer c ON q.CustomerID = c.CustomerID 
-  WHERE q.Status NOT IN ("Completed");
+  JOIN Customers c ON q.CustomerID = c.CustomerID 
+  WHERE q.Status ${status === 'new' ? 'NOT IN' : 'IN'} ("Completed");
 `;
 
   
@@ -145,68 +147,87 @@ exports.getInvoiceById = (req, res) => {
   });
 };
 
-// Modified createInvoice to use Stripe Checkout
+// POST to create a new invoice
 exports.createInvoice = async (req, res) => {
-    const connection = await db.promise().getConnection();
-    try {
-        await connection.beginTransaction();
+  const connection = await db.promise().getConnection();
+  try {
+      await connection.beginTransaction();
 
-        const newInvoice = req.body;
+      const newInvoice = req.body;
 
-        // Get customer information
-        const [customerResult] = await connection.query(`
-            SELECT c.* 
-            FROM Customers c
-            JOIN Quotes q ON q.CustomerID = c.CustomerID
-            WHERE q.QuoteID = ?
-        `, [newInvoice.QuoteID]);
+      // Get customer and quote information
+      const [customerResult] = await connection.query(`
+          SELECT c.*, q.ReferenceNumber, q.MaterialType, q.FenceLength 
+          FROM Customers c
+          JOIN Quotes q ON q.CustomerID = c.CustomerID
+          WHERE q.QuoteID = ?
+      `, [newInvoice.QuoteID]);
 
-        if (customerResult.length === 0) {
-            throw new Error('Customer not found');
-        }
+      if (customerResult.length === 0) {
+          throw new Error('Customer not found');
+      }
 
-        // Create invoice in database
-        const [result] = await connection.query(
-            'INSERT INTO Invoice (QuoteID, InvoiceDate, DueDate, TotalAmount, PaymentStatus) VALUES (?, ?, ?, ?, ?)',
-            [newInvoice.QuoteID, newInvoice.InvoiceDate, newInvoice.DueDate, newInvoice.TotalAmount, 'pending']
-        );
+      // Create invoice in database
+      const [result] = await connection.query(
+          `INSERT INTO Invoice (
+              QuoteID, InvoiceDate, DueDate, TotalAmount, 
+              PaymentStatus, IsDeleted
+          ) VALUES (?, ?, ?, ?, 'pending', 0)`,
+          [
+              newInvoice.QuoteID,
+              newInvoice.InvoiceDate,
+              newInvoice.DueDate,
+              newInvoice.TotalAmount
+          ]
+      );
 
-        const invoiceId = result.insertId;
+      const invoiceId = result.insertId;
 
-        // Create Stripe Checkout session
-        const paymentLink = await createStripeCheckoutSession(
-            { ...newInvoice, InvoiceID: invoiceId },
-            customerResult[0]
-        );
+      // Create Stripe Checkout session with more details
+      const paymentLink = await createStripeCheckoutSession(
+          { 
+              ...newInvoice, 
+              InvoiceID: invoiceId,
+              ReferenceNumber: customerResult[0].ReferenceNumber,
+              MaterialType: customerResult[0].MaterialType,
+              FenceLength: customerResult[0].FenceLength
+          },
+          customerResult[0]
+      );
 
-        // Update invoice with payment link
-        await connection.query(
-            'UPDATE Invoice SET PaymentLink = ? WHERE InvoiceID = ?',
-            [paymentLink, invoiceId]
-        );
+      // Update invoice with payment link
+      await connection.query(
+          'UPDATE Invoice SET PaymentLink = ? WHERE InvoiceID = ?',
+          [paymentLink, invoiceId]
+      );
 
-        await connection.commit();
+      // Update quote status
+      await connection.query(
+          'UPDATE Quotes SET Status = ? WHERE QuoteID = ?',
+          ['Awaiting Payment', newInvoice.QuoteID]
+      );
 
-        res.status(200).json({
-            success: true,
-            message: 'Invoice created successfully',
-            invoiceId: invoiceId,
-            paymentLink: paymentLink
-        });
+      await connection.commit();
 
-    } catch (error) {
-        await connection.rollback();
-        console.error('Error in createInvoice:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to create invoice',
-            error: error.message
-        });
-    } finally {
-        connection.release();
-    }
+      res.status(200).json({
+          success: true,
+          message: 'Invoice created successfully',
+          invoiceId: invoiceId,
+          paymentLink: paymentLink
+      });
+
+  } catch (error) {
+      await connection.rollback();
+      console.error('Error in createInvoice:', error);
+      res.status(500).json({
+          success: false,
+          message: 'Failed to create invoice',
+          error: error.message
+      });
+  } finally {
+      connection.release();
+  }
 };
-
 // PUT to update an invoice
 exports.updateInvoice = (req, res) => {
   const invoiceId = req.params.id;

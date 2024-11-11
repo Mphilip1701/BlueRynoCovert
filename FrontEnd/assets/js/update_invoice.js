@@ -64,7 +64,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify({
+                        ...data,
+                        quoteReference: quoteReferenceNumber
+                    })
                 });
                 
                 const linkResult = await linkResponse.json();

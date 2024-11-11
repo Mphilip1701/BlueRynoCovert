@@ -30,27 +30,41 @@ exports.getFeedbackById = (req, res) => {
 };
 
 // POST new feedback
-exports.createFeedback = (req, res) => {
-  const { CustomerID, QuoteID, Rating, Comments } = req.body; // Use QuoteID instead of ProjectID
-  const FeedbackDate = req.body.FeedbackDate || new Date().toISOString().split('T')[0]; // Use today's date if not provided
+exports.createFeedback = async (req, res) => {
+  try {
+      const { CustomerID, QuoteID, Rating, Comments } = req.body;
+      const FeedbackDate = req.body.FeedbackDate || new Date().toISOString().split('T')[0];
 
-  // Ensure required fields are present
-  if (!CustomerID || !QuoteID || !Rating) {
-    return res.status(400).send('Missing required fields');
+      // Validate required fields
+      if (!CustomerID || !QuoteID || !Rating) {
+          return res.status(400).send('Missing required fields');
+      }
+
+      // Verify CustomerID exists
+      const [customerExists] = await db.query('SELECT CustomerID FROM Customers WHERE CustomerID = ?', [CustomerID]);
+      if (customerExists.length === 0) {
+          return res.status(404).send('Customer not found');
+      }
+
+      // Verify QuoteID exists
+      const [quoteExists] = await db.query('SELECT QuoteID FROM Quotes WHERE QuoteID = ?', [QuoteID]);
+      if (quoteExists.length === 0) {
+          return res.status(404).send('Quote not found');
+      }
+
+      const newFeedback = { CustomerID, QuoteID, FeedbackDate, Rating, Comments };
+      const [result] = await db.query('INSERT INTO Feedback SET ?', newFeedback);
+      
+      res.json({ 
+          message: 'Feedback added', 
+          feedbackId: result.insertId 
+      });
+
+  } catch (error) {
+      console.error('Error in createFeedback:', error);
+      res.status(500).send('Error creating feedback');
   }
-
-  const newFeedback = { CustomerID, QuoteID, FeedbackDate, Rating, Comments };
-  const sql = 'INSERT INTO Feedback SET ?';
-
-  db.query(sql, newFeedback, (err, result) => {
-    if (err) {
-      console.error('Error adding feedback:', err);
-      return res.status(500).send('Error adding feedback');
-    }
-    res.json({ message: 'Feedback added', feedbackId: result.insertId });
-  });
 };
-
 
 
 // PUT to update feedback (e.g., modify rating or comments)

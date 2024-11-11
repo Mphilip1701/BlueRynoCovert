@@ -12,6 +12,7 @@ const adminRoutes = require('./routes/adminRoutes');
 const vendorRoutes = require('./routes/vendorRoutes');
 const customerRoutes = require('./routes/customerRoutes');
 const inventoryRoutes = require('./routes/inventoryRoutes');
+const jobStatusRoutes = require('./routes/jobStatusRoutes');
 const quotesRoutes = require('./routes/quotesRoutes');
 const feedbackRoutes = require('./routes/feedbackRoutes');
 const projectRoutes = require('./routes/projectRoutes');  // New Projects routes
@@ -31,7 +32,7 @@ const port = 3001;  // Define the port
 
 // Middleware setup
 app.use(cors({
-  origin: 'http://3.135.251.94:3001',
+  origin: 'http://localhost:3001',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -106,6 +107,8 @@ app.use('/api/projects', projectRoutes);       // New Projects routes
 app.use('/api/payments', paymentRoutes);       // New Payments routes
 app.use('/api/invoices', invoiceRoutes);       // New Invoices routes
 app.use('/api/passwords', passwordRoutes);     // New Password routes
+app.use('/api/jobStatus', jobStatusRoutes);   // Job Status routes
+
 
 // FrontEnd Routes
 app.get('/', (req, res) => {
@@ -120,7 +123,7 @@ app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, '../FrontEnd/login.html'));
 });
 
-app.get('/job-status', (req, res) => {
+app.get('/jobStatus', (req, res) => {
   res.sendFile(path.join(__dirname, '../FrontEnd/jobStatus.html'));
 });
 
@@ -176,6 +179,9 @@ app.use((err, req, res, next) => {
 
 // Start the server
 
-app.listen(port, '0.0.0.0', () => {
-  console.log(`Server is running on http://3.135.251.94:${port}`);
-});
+//app.listen(port, '0.0.0.0', () => {
+//  console.log(`Server is running on http://54.225.115.8:${port}`);
+//});
+ app.listen(port, () => {
+   console.log(`Server is running on http://localhost:${port}`);
+ });

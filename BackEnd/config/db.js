@@ -1,10 +1,11 @@
 const mysql = require('mysql2/promise');
+require('dotenv').config({path: '../.env'})
 
 const pool = mysql.createPool({
-  host: 'bluerynodb-restored.cj02o08agyaa.us-east-2.rds.amazonaws.com',
-  user: 'admin',
-  password: 'admin123',
-  database: 'BlueRynoProjectDB',
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0

@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const detailsHtml = `
                     <div class="quote-summary">
                         <h3>Quote #${quote.QuoteID}</h3>
+                        <p><strong>Reference Number:</strong> ${quote.ReferenceNumber}</p>
                         <div class="details-grid">
                             <div class="customer-info">
                                 <h4>Customer Information</h4>

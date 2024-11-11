@@ -29,16 +29,45 @@ exports.getProjectById = (req, res) => {
 };
 
 // POST a new project
-exports.createProject = (req, res) => {
-  const newProject = req.body;
-  const sql = 'INSERT INTO Projects SET ?';
-  db.query(sql, newProject, (err, result) => {
-    if (err) {
-      console.error('Error adding project:', err);
-      return res.status(500).send('Error adding project');
-    }
-    res.json({ message: 'Project created', projectId: result.insertId });
-  });
+// Update createProject to validate quote relationship
+exports.createProject = async (req, res) => {
+  try {
+      const { QuoteID, ProjectStartDate, ProjectEndDate, Status } = req.body;
+
+      // Validate QuoteID exists
+      const [quoteExists] = await db.query(
+          'SELECT QuoteID FROM Quotes WHERE QuoteID = ?',
+          [QuoteID]
+      );
+
+      if (quoteExists.length === 0) {
+          return res.status(404).send('Quote not found');
+      }
+
+      const newProject = {
+          QuoteID,
+          ProjectStartDate,
+          ProjectEndDate,
+          Status
+      };
+
+      const [result] = await db.query('INSERT INTO Projects SET ?', newProject);
+      
+      // Update quote status when project is created
+      await db.query(
+          'UPDATE Quotes SET Status = ? WHERE QuoteID = ?',
+          ['In Progress', QuoteID]
+      );
+
+      res.json({ 
+          message: 'Project created', 
+          projectId: result.insertId 
+      });
+
+  } catch (error) {
+      console.error('Error creating project:', error);
+      res.status(500).send('Error creating project');
+  }
 };
 
 // PUT to update a project

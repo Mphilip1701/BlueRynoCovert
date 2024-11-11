@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const detailsHtml = `
                     <div class="invoice-header">
                         <h3>Invoice #${invoice.InvoiceID}</h3>
+                        <p><strong>Quote Reference:</strong> ${invoice.ReferenceNumber}</p>
                         <p><strong>Date:</strong> ${invoiceDate}</p>
                         <p><strong>Due Date:</strong> ${dueDate}</p>
                     </div>

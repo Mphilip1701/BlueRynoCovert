@@ -1,6 +1,38 @@
 document.addEventListener('DOMContentLoaded', function() {
     const quoteForm = document.getElementById('quoteForm');
+    const photoPreview = document.getElementById('photoPreview');
     
+    // Photo preview functionality
+    document.getElementById('photos').addEventListener('change', function(e) {
+        photoPreview.innerHTML = ''; // Clear existing previews
+        
+        for (let file of this.files) {
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    photoPreview.appendChild(img);
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+    });
+
+    // Phone number formatting
+    const phoneInput = document.getElementById('phone');
+    phoneInput.addEventListener('input', function(e) {
+        let cleaned = e.target.value.replace(/\D/g, '');
+        if (cleaned.length > 10) cleaned = cleaned.substr(0, 10);
+        if (cleaned.length >= 6) {
+            cleaned = cleaned.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
+        } else if (cleaned.length >= 3) {
+            cleaned = cleaned.replace(/(\d{3})(\d{0,3})/, '($1) $2');
+        }
+        e.target.value = cleaned;
+    });
+
+    // Form submission
     quoteForm.addEventListener('submit', async function(e) {
         e.preventDefault();
         
@@ -38,7 +70,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Send the form data to the backend
-            const response = await fetch('http://localhost:3001/api/quotes', {
+            const response = await fetch('/api/quotes', {
                 method: 'POST',
                 body: payload
             });
@@ -50,30 +82,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const result = await response.json();
 
-            // Show success message
-            alert('Quote request submitted successfully! You will receive a confirmation email shortly.');
+            // Show success message with reference number
+            alert(`Quote request submitted successfully! Your reference number is: ${result.referenceNumber}\n\nPlease save this number for checking your quote status later. You will also receive a confirmation email shortly.`);
             quoteForm.reset();
+            photoPreview.innerHTML = ''; // Clear photo previews
 
         } catch (error) {
             console.error('Error:', error);
             alert('There was an error submitting your quote request. Please try again.');
         } finally {
-            // Reset button state
-            submitButton.value = originalButtonText;
-            submitButton.disabled = false;
+            // Get the button again in case it wasn't found earlier
+    const submitButton = quoteForm.querySelector('input[type="submit"]');
+    if (submitButton) {
+        submitButton.value = originalButtonText || 'Submit';
+        submitButton.disabled = false;
         }
-    });
+    };
 
-    // Phone number formatting
-    const phoneInput = document.getElementById('phone');
-    phoneInput.addEventListener('input', function(e) {
-        let cleaned = e.target.value.replace(/\D/g, '');
-        if (cleaned.length > 10) cleaned = cleaned.substr(0, 10);
-        if (cleaned.length >= 6) {
-            cleaned = cleaned.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
-        } else if (cleaned.length >= 3) {
-            cleaned = cleaned.replace(/(\d{3})(\d{0,3})/, '($1) $2');
-        }
-        e.target.value = cleaned;
+    // Form reset handler
+    quoteForm.addEventListener('reset', function() {
+        photoPreview.innerHTML = ''; // Clear photo previews
     });
-});
+})});

@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const detailsHtml = `
                     <div class="quote-header">
                         <h3>Quote #${quote.QuoteID}</h3>
+                        <p><strong>Reference Number:</strong> ${quote.ReferenceNumber}</p>
                         <p><strong>Date:</strong> ${quoteDate}</p>
                     </div>
 
